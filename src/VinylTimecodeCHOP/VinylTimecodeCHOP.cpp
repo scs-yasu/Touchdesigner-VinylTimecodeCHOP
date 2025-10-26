@@ -48,8 +48,8 @@ extern "C"
         info->customOPInfo.opIcon->setString("VTC");
         info->customOPInfo.minInputs = 1;
         info->customOPInfo.maxInputs = 1;
-        info->customOPInfo.authorName->setString("Your Name");
-        info->customOPInfo.authorEmail->setString("your.email@example.com");
+        info->customOPInfo.authorName->setString("Nobuyasu Fukazawa");
+        info->customOPInfo.authorEmail->setString("yasu@skeletoncrew.co.jp");
         info->customOPInfo.cookOnStart = true;
     }
 
