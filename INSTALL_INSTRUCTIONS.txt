@@ -1,0 +1,71 @@
+# VinylTimecodeCHOP プラグインのインストール手順
+
+## プラグインの場所
+./examples/Plugins/VinylTimecodeCHOP.plugin
+
+## インストール方法
+
+### 方法1: プロジェクトフォルダに配置（推奨）
+
+1. TouchDesigner プロジェクトファイル (project1.toe など) と同じディレクトリに `Plugins` フォルダを作成
+2. `VinylTimecodeCHOP.plugin` を `Plugins` フォルダにコピー
+
+例:
+```
+/path/to/project1/
+├── project1.toe
+└── Plugins/
+    └── VinylTimecodeCHOP.plugin/
+```
+
+コマンドライン例（プロジェクトフォルダのパスを調整してください）:
+```bash
+# プロジェクトフォルダのパスを確認
+PROJECT_PATH="/path/to/your/project1"
+
+# Plugins フォルダを作成
+mkdir -p "$PROJECT_PATH/Plugins"
+
+# プラグインをコピー
+cp -R ./examples/Plugins/VinylTimecodeCHOP.plugin "$PROJECT_PATH/Plugins/"
+```
+
+### 方法2: グローバルプラグインフォルダに配置
+
+macOS の場合:
+```bash
+mkdir -p ~/Library/Application\ Support/Derivative/TouchDesigner099/Plugins
+cp -R ./examples/Plugins/VinylTimecodeCHOP.plugin ~/Library/Application\ Support/Derivative/TouchDesigner099/Plugins/
+```
+
+## TouchDesigner での使用方法
+
+1. TouchDesigner を再起動
+2. `Vinyltimecode` CHOP を検索して作成
+3. Audio Device In CHOP を接続
+4. パラメータで `Format` を選択（例: Pioneer RekordBox Side A）
+
+## トラブルシューティング
+
+### プラグインが見つからない場合
+
+TouchDesigner を完全に再起動してください。
+
+### "Failed to load the plugin" エラーが出る場合
+
+次のコマンドを実行してセキュリティ属性を削除:
+```bash
+xattr -cr /path/to/Plugins/VinylTimecodeCHOP.plugin
+```
+
+## プロジェクトフォルダの確認方法
+
+TouchDesigner で:
+1. メニューバーから File > Save Project As... を選択
+2. 表示されたパスがプロジェクトフォルダです
+
+または、TouchDesigner で以下を実行:
+```python
+print(project.folder)
+```
+

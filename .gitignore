@@ -1,0 +1,137 @@
+# VinylTimecodeCHOP - .gitignore
+#
+# このファイルはドキュメントと動作確認済み構成を保護します
+# This file protects documentation and working configuration
+
+# ============================================================
+# IMPORTANT: Working Configuration Preservation
+# 重要: 動作確認済み構成の保存
+# ============================================================
+#
+# The following files contain the working setup and MUST be preserved:
+# 以下のファイルには動作するセットアップが含まれており、保存する必要があります:
+#
+# ✅ All .md files (README.md, QUICKSTART.md, TROUBLESHOOTING.md, BUILD.md)
+# ✅ examples/Plugins/VinylTimecodeCHOP.plugin/ (動作確認済みプラグイン)
+# ✅ src/VinylTimecodeCHOP/*.cpp, *.h (getParInt fix, namespace fix)
+# ✅ CMakeLists.txt (visibility flag removed)
+# ✅ lib/xwax/* (Mixxx 2.5.3 library)
+#
+# Success Configuration (成功構成):
+#   Hardware: Native Instruments Interface 2
+#   Vinyl: Pioneer RekordBox DVS Side A
+#   Sample Rate: 44100 Hz
+#   Switch: LINE (not PHONO)
+#   Results: position=292652.53, pitch=1.0, quality=1.40
+#
+# ============================================================
+
+# Build directories (ビルドディレクトリ)
+build/
+out/
+
+# Built plugin in build directory (NOT examples/Plugins/)
+# ビルドディレクトリ内のプラグイン (examples/Plugins/ は除外しない)
+build/**/*.plugin/
+out/**/*.plugin/
+
+# Compiled libraries (コンパイル済みライブラリ)
+*.dll
+*.dylib
+*.so
+*.a
+
+# IDE files (IDE ファイル)
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
+*.sln
+*.vcxproj*
+*.suo
+*.user
+xcuserdata/
+DerivedData/
+
+# CMake (CMake キャッシュとファイル)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# macOS (macOS システムファイル)
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+*.dSYM/
+Thumbs.db
+
+# Windows (Windows ビルド成果物)
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Object files (オブジェクトファイル)
+*.o
+*.lo
+*.slo
+
+# ASIO SDK (download separately)
+# ASIO SDK (別途ダウンロード)
+lib/asiosdk/
+
+# TouchDesigner SDK (copy from installation)
+# TouchDesigner SDK (インストールからコピー)
+lib/touchdesigner-sdk/
+
+# Temporary files (一時ファイル)
+*.tmp
+*.log
+*.swp
+*.bak
+*.backup
+*~
+
+# ============================================================
+# Personal and Development Files (個人設定・開発ファイル)
+# ============================================================
+
+# Claude AI settings (Claude AI 設定)
+.claude/
+.claude/*
+
+# TouchDesigner project files (TouchDesigner 作業ファイル)
+*.toe
+*.tox
+
+# Backup directory (バックアップディレクトリ)
+Backup/
+
+# Downloaded reference implementations (参考実装)
+# Mixxx source code is for reference only, not needed in repository
+mixxx-*/
+*.zip
+
+# ============================================================
+# Explicitly KEEP these files (明示的に保持するファイル)
+# ============================================================
+#
+# Documentation files - NEVER exclude!
+# ドキュメントファイル - 絶対に除外しない!
+#
+# !README.md
+# !QUICKSTART.md
+# !TROUBLESHOOTING.md
+# !BUILD.md
+# !INSTALL_INSTRUCTIONS.txt
+#
+# Working plugin - NEVER exclude!
+# 動作確認済みプラグイン - 絶対に除外しない!
+#
+# !examples/Plugins/VinylTimecodeCHOP.plugin/
+#
+# ============================================================
