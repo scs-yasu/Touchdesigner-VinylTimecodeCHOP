@@ -1,11 +1,9 @@
 # VinylTimecode CHOP for TouchDesigner
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)](https://github.com/yourusername/VinylTimecodeCHOP)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)](https://github.com/scs-yasu/Touchdesigner-VinylTimecodeCHOP)
 [![TouchDesigner](https://img.shields.io/badge/TouchDesigner-2022.28000%2B-orange)](https://derivative.ca/)
-
-<!-- GitHub公開後、yourusernameを実際のユーザー名に置き換えてください -->
-<!-- After publishing to GitHub, replace 'yourusername' with your actual username -->
+[![GitHub](https://img.shields.io/badge/GitHub-VinylTimecodeCHOP-blue?logo=github)](https://github.com/scs-yasu/Touchdesigner-VinylTimecodeCHOP)
 
 TouchDesigner用のバイナルタイムコード解析プラグイン。INTERFACE 2などのオーディオインターフェースから取得したタイムコードバイナルの信号を解析し、位置、速度、方向情報をリアルタイムで出力します。
 
