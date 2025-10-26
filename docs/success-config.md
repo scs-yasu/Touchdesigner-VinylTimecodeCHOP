@@ -78,12 +78,13 @@ timecode_ticker: 7
 
 ### プラグイン配置
 
-**場所**: `~/Desktop/project1/Plugins/VinylTimecodeCHOP.plugin/`
+**場所**: `~/path/to/your/project/Plugins/VinylTimecodeCHOP.plugin/`
 
 **配置コマンド**:
 ```bash
 PROJECT_PATH="/path/to/your/project"
 mkdir -p "$PROJECT_PATH/Plugins"
+# リポジトリのルートディレクトリから実行
 cp -R ./examples/Plugins/VinylTimecodeCHOP.plugin "$PROJECT_PATH/Plugins/"
 xattr -cr "$PROJECT_PATH/Plugins/VinylTimecodeCHOP.plugin"
 ```

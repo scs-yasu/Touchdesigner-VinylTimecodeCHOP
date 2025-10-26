@@ -175,7 +175,7 @@ This checklist covers items to verify before publishing VinylTimecode CHOP to Gi
 ```bash
 # チェックリスト確認後、以下を実行:
 
-cd /Users/yasu/Desktop/Develop/touchdesignerOP
+cd /path/to/VinylTimecodeCHOP
 
 # Gitリポジトリ初期化
 git init

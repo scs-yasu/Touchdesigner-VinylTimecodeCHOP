@@ -1,7 +1,7 @@
 # VinylTimecodeCHOP プラグインのインストール手順
 
 ## プラグインの場所
-./examples/Plugins/VinylTimecodeCHOP.plugin
+このリポジトリ内: examples/Plugins/VinylTimecodeCHOP.plugin
 
 ## インストール方法
 
@@ -21,12 +21,12 @@
 コマンドライン例（プロジェクトフォルダのパスを調整してください）:
 ```bash
 # プロジェクトフォルダのパスを確認
-PROJECT_PATH="/path/to/your/project1"
+PROJECT_PATH="/path/to/your/project"
 
 # Plugins フォルダを作成
 mkdir -p "$PROJECT_PATH/Plugins"
 
-# プラグインをコピー
+# プラグインをコピー（リポジトリのルートから）
 cp -R ./examples/Plugins/VinylTimecodeCHOP.plugin "$PROJECT_PATH/Plugins/"
 ```
 
