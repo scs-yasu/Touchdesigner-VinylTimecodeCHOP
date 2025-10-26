@@ -31,6 +31,8 @@ TouchDesigner用のバイナルタイムコード解析プラグイン。INTERFA
 
 **📖 すぐに始めたい方は [QUICKSTART.md](QUICKSTART.md) をご覧ください！**
 
+**🎮 サンプルプロジェクト**: [examples/sample.toe](examples/sample.toe) - 動作確認用のサンプルファイルをご用意しています
+
 ## 特徴
 
 - **複数フォーマット対応**
@@ -154,6 +156,36 @@ copy build\plugin\VinylTimecodeCHOP.dll "%USERPROFILE%\Documents\Derivative\Touc
 ```
 
 ## 使用方法
+
+### 0. サンプルプロジェクトで試す（推奨）
+
+まず、サンプルプロジェクトで動作確認することをお勧めします：
+
+1. **サンプルファイルを開く**
+   ```
+   examples/sample.toe
+   ```
+
+2. **プラグインが読み込まれていることを確認**
+   - VinylTimecode CHOP が表示されているか確認
+   - エラーが出ている場合は [TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照
+
+3. **ハードウェアを接続**
+   - Interface 2 を接続
+   - ターンテーブルを接続
+   - バイナルレコードをセット
+
+4. **動作確認**
+   - レコードを回す
+   - position, pitch の値が変化することを確認
+
+サンプルプロジェクトには以下が含まれています：
+- Audio Device In CHOP（事前設定済み）
+- VinylTimecode CHOP（Pioneer RekordBox A で設定済み）
+- Info CHOP（デバッグ用）
+- 使い方の説明（Text DAT）
+
+---
 
 ### 1. ハードウェアセットアップ
 

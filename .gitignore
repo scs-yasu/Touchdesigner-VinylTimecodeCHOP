@@ -108,6 +108,9 @@ lib/touchdesigner-sdk/
 *.toe
 *.tox
 
+# Except sample files (サンプルファイルは除外しない)
+!examples/sample.toe
+
 # Backup directory (バックアップディレクトリ)
 Backup/
 
