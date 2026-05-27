@@ -25,6 +25,11 @@ set(CHOP_SOURCES
     src/VinylTimecodeCHOP/VinylTimecodeCHOP.cpp
 )
 
+# ScrubAudioCHOP sources
+set(SCRUB_AUDIO_CHOP_SOURCES
+    src/ScrubAudioCHOP/ScrubAudioCHOP.cpp
+)
+
 # Create the plugin library
 add_library(VinylTimecodeCHOP MODULE
     ${XWAX_SOURCES}
@@ -79,6 +84,32 @@ elseif(PLATFORM_WINDOWS)
         SUFFIX ".dll"
         OUTPUT_NAME "VinylTimecodeCHOP"
     )
+
+    add_library(ScrubAudioCHOP MODULE
+        ${SCRUB_AUDIO_CHOP_SOURCES}
+    )
+
+    target_include_directories(ScrubAudioCHOP PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/touchdesigner-sdk
+    )
+
+    target_compile_options(ScrubAudioCHOP PRIVATE
+        /W3
+        /wd4100  # unreferenced formal parameter
+    )
+
+    target_link_libraries(ScrubAudioCHOP PRIVATE
+        mfplat
+        mfreadwrite
+        mfuuid
+        mf
+    )
+
+    set_target_properties(ScrubAudioCHOP PROPERTIES
+        PREFIX ""
+        SUFFIX ".dll"
+        OUTPUT_NAME "ScrubAudioCHOP"
+    )
 endif()
 
 # Output directory
@@ -87,12 +118,26 @@ set_target_properties(VinylTimecodeCHOP PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
 )
 
+if(TARGET ScrubAudioCHOP)
+    set_target_properties(ScrubAudioCHOP PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugin"
+    )
+endif()
+
 # Installation
 install(TARGETS VinylTimecodeCHOP
     LIBRARY DESTINATION .
     RUNTIME DESTINATION .
     BUNDLE DESTINATION .
 )
+
+if(TARGET ScrubAudioCHOP)
+    install(TARGETS ScrubAudioCHOP
+        LIBRARY DESTINATION .
+        RUNTIME DESTINATION .
+    )
+endif()
 
 # Status messages
 message(STATUS "=================================")

@@ -28,8 +28,9 @@ public:
     virtual void setupParameters(OP_ParameterManager* manager, void*) override;
 
 private:
-    void processAudioSamples(const float* leftChannel, const float* rightChannel, int numSamples);
-    void initializeTimecoder(const char* formatName, double sampleRate);
+    void processAudioSamples(const float* leftChannel, const float* rightChannel,
+                             int numSamples, float gain, bool swapLR, bool invertL, bool invertR, double pitchScale);
+    void initializeTimecoder(const char* formatName, double sampleRate, double vinylSpeed);
     void cleanupTimecoder();
 
     const OP_NodeInfo* myNodeInfo;
@@ -48,14 +49,20 @@ private:
 
     // Last valid position (to handle -1 returns)
     double myLastValidPosition;
-    signed int myRawPosition;  // Raw position from timecoder (-1 if unknown)
+    signed int myRawPosition;
 
     // For pitch-based interpolation when raw_position is -1
-    int myLastNumSamples;  // Number of samples in last process call
+    int myLastNumSamples;
+
+    // Peak detection
+    float myPeakL;
+    float myPeakR;
+    int32_t myClipCount;
 
     // Current format index
     int32_t myCurrentFormatIndex;
     double myCurrentSampleRate;
+    double myCurrentVinylSpeed;
     bool myTimecoderInitialized;
 };
 

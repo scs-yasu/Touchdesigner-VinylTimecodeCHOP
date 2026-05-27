@@ -8,6 +8,8 @@
 // Include xwax C library
 extern "C" {
 #include "timecoder.h"
+#include "pitch.h"
+#include "pitch_kalman.h"
 }
 
 // Available timecode format names (from xwax)
@@ -42,7 +44,7 @@ extern "C"
 {
     DLLEXPORT void FillCHOPPluginInfo(TD::CHOP_PluginInfo *info)
     {
-        info->apiVersion = TD::CHOPCPlusPlusAPIVersion;
+        (void)info->setAPIVersion(TD::CHOPCPlusPlusAPIVersion);
         info->customOPInfo.opType->setString("Vinyltimecode");
         info->customOPInfo.opLabel->setString("Vinyl Timecode");
         info->customOPInfo.opIcon->setString("VTC");
@@ -74,8 +76,12 @@ VinylTimecodeCHOP::VinylTimecodeCHOP(const OP_NodeInfo* info)
     , myLastValidPosition(0.0)
     , myRawPosition(-1)
     , myLastNumSamples(0)
+    , myPeakL(0.0f)
+    , myPeakR(0.0f)
+    , myClipCount(0)
     , myCurrentFormatIndex(0)
     , myCurrentSampleRate(44100.0)
+    , myCurrentVinylSpeed(1.0)
     , myTimecoderInitialized(false)
 {
 }
@@ -97,35 +103,29 @@ VinylTimecodeCHOP::cleanupTimecoder()
 }
 
 void
-VinylTimecodeCHOP::initializeTimecoder(const char* formatName, double sampleRate)
+VinylTimecodeCHOP::initializeTimecoder(const char* formatName, double sampleRate, double vinylSpeed)
 {
-    // Clean up existing timecoder if any
     cleanupTimecoder();
 
-    // Find the timecode definition
     timecode_def* def = timecoder_find_definition(formatName);
-
     if (!def) {
         fprintf(stderr, "VinylTimecodeCHOP: Unknown timecode format '%s'\n", formatName);
         return;
     }
 
-    // Create new timecoder
     myTimecoder = new timecoder;
     myCurrentDef = def;
-
-    // Initialize with the definition
-    // Parameters: timecoder, def, speed (1.0 for 33 1/3 RPM), sample_rate, phono, use_legacy_pitch_filter
-    timecoder_init(myTimecoder, def, 1.0, static_cast<unsigned int>(sampleRate), false, false);
+    timecoder_init(myTimecoder, def, vinylSpeed, static_cast<unsigned int>(sampleRate), false, false);
 
     myCurrentSampleRate = sampleRate;
+    myCurrentVinylSpeed = vinylSpeed;
     myTimecoderInitialized = true;
 }
 
 void
 VinylTimecodeCHOP::getGeneralInfo(CHOP_GeneralInfo* ginfo, const OP_Inputs* inputs, void*)
 {
-    ginfo->cookEveryFrame = false;
+    ginfo->cookEveryFrame = true;
     ginfo->cookEveryFrameIfAsked = true;
     ginfo->timeslice = false;
     ginfo->inputMatchIndex = 0;
@@ -136,7 +136,6 @@ VinylTimecodeCHOP::getOutputInfo(CHOP_OutputInfo* info, const OP_Inputs* inputs,
 {
     info->numChannels = 3;  // position, pitch, quality
 
-    // Match input sample count if input exists
     if (inputs->getNumInputs() > 0) {
         info->numSamples = inputs->getInputCHOP(0)->numSamples;
         info->sampleRate = static_cast<float>(inputs->getInputCHOP(0)->sampleRate);
@@ -146,7 +145,6 @@ VinylTimecodeCHOP::getOutputInfo(CHOP_OutputInfo* info, const OP_Inputs* inputs,
     }
 
     info->startIndex = 0;
-
     return true;
 }
 
@@ -154,109 +152,109 @@ void
 VinylTimecodeCHOP::getChannelName(int32_t index, OP_String* name, const OP_Inputs* inputs, void*)
 {
     switch (index) {
-        case 0:
-            name->setString("position");
-            break;
-        case 1:
-            name->setString("pitch");
-            break;
-        case 2:
-            name->setString("quality");
-            break;
-        default:
-            name->setString("unknown");
-            break;
+        case 0: name->setString("position"); break;
+        case 1: name->setString("pitch"); break;
+        case 2: name->setString("quality"); break;
+        default: name->setString("unknown"); break;
     }
 }
 
 void
-VinylTimecodeCHOP::processAudioSamples(const float* leftChannel, const float* rightChannel, int numSamples)
+VinylTimecodeCHOP::processAudioSamples(const float* leftChannel, const float* rightChannel,
+                                        int numSamples, float gain, bool swapLR, bool invertL, bool invertR, double pitchScale)
 {
     if (!myTimecoder || !myTimecoderInitialized) {
         return;
     }
 
-    // Prepare interleaved int16_t buffer
     myAudioBuffer.resize(numSamples * 2);
 
-    for (int i = 0; i < numSamples; i++) {
-        // Clamp and convert to int16_t
-        float leftSample = std::max(-1.0f, std::min(1.0f, leftChannel[i]));
-        float rightSample = std::max(-1.0f, std::min(1.0f, rightChannel[i]));
+    myPeakL = 0.0f;
+    myPeakR = 0.0f;
 
-        myAudioBuffer[i * 2] = static_cast<int16_t>(leftSample * 32767.0f);
-        myAudioBuffer[i * 2 + 1] = static_cast<int16_t>(rightSample * 32767.0f);
+    for (int i = 0; i < numSamples; i++) {
+        float L = leftChannel[i] * gain;
+        float R = rightChannel[i] * gain;
+
+        if (swapLR) std::swap(L, R);
+        if (invertL) L = -L;
+        if (invertR) R = -R;
+
+        // Track peak levels
+        float absL = std::abs(L);
+        float absR = std::abs(R);
+        if (absL > myPeakL) myPeakL = absL;
+        if (absR > myPeakR) myPeakR = absR;
+
+        // Clip detection
+        if (absL > 0.99f || absR > 0.99f) myClipCount++;
+
+        // Clamp and convert to int16_t
+        L = std::max(-1.0f, std::min(1.0f, L));
+        R = std::max(-1.0f, std::min(1.0f, R));
+
+        myAudioBuffer[i * 2] = static_cast<int16_t>(L * 32767.0f);
+        myAudioBuffer[i * 2 + 1] = static_cast<int16_t>(R * 32767.0f);
     }
 
-    // Submit to timecoder
     timecoder_submit(myTimecoder, myAudioBuffer.data(), numSamples);
 
-    // Get the latest values
     myRawPosition = timecoder_get_position(myTimecoder, nullptr);
-    myPitch = timecoder_get_pitch(myTimecoder);
+    myPitch = timecoder_get_pitch(myTimecoder) * pitchScale;
 
-    // Handle -1 (position unknown) with pitch-based interpolation
     if (myRawPosition >= 0) {
-        // Valid position received, update both current and last valid
         myPosition = static_cast<double>(myRawPosition);
         myLastValidPosition = myPosition;
     } else {
-        // Position is -1 (unknown)
-        // Use pitch-based interpolation for smooth movement
         if (myLastNumSamples > 0 && std::abs(myPitch) > 0.01) {
-            // Estimate position change based on pitch and samples
-            // pitch is in relative speed (1.0 = normal, -1.0 = reverse at normal speed)
-            double positionChange = myPitch * numSamples;
+            double positionChange = myPitch * numSamples * 1000.0 / myCurrentSampleRate;
             myPosition = myLastValidPosition + positionChange;
-
-            // Update last valid position for next iteration
             myLastValidPosition = myPosition;
         } else {
-            // No pitch information or stopped, keep the last valid position
             myPosition = myLastValidPosition;
         }
     }
 
-    // Store sample count for next iteration
     myLastNumSamples = numSamples;
-
-    // Quality based on valid_counter (number of successful error checks)
     myAlive = (myTimecoder->valid_counter > 0) ? 1 : 0;
 }
 
 void
 VinylTimecodeCHOP::execute(CHOP_Output* output, const OP_Inputs* inputs, void*)
 {
-    // Get parameters - menu parameter returns index
     int formatIndex = inputs->getParInt("Format");
     const char* formatName = TIMECODE_FORMATS[formatIndex];
-    double sampleRate = 44100.0; // Default
+    float gain = static_cast<float>(inputs->getParDouble("Gain"));
+    double timecoderRate = inputs->getParDouble("Timecoderate");
+    double vinylSpeed = inputs->getParDouble("Vinylspeed");
+    double pitchScale = inputs->getParDouble("Pitchscale");
+    bool swapLR = inputs->getParInt("Swaplr") != 0;
+    bool invertL = inputs->getParInt("Invertl") != 0;
+    bool invertR = inputs->getParInt("Invertr") != 0;
+    double sampleRate = 44100.0;
 
-    // Get input CHOP
     const OP_CHOPInput* inputChop = inputs->getNumInputs() > 0 ? inputs->getInputCHOP(0) : nullptr;
 
     if (inputChop) {
         sampleRate = inputChop->sampleRate;
+        const double effectiveTimecoderRate = timecoderRate > 0.0 ? timecoderRate : sampleRate;
+        vinylSpeed = vinylSpeed > 0.0 ? vinylSpeed : 1.0;
 
-        // Reinitialize if format or sample rate changed
         if (!myTimecoderInitialized ||
             formatIndex != myCurrentFormatIndex ||
-            std::abs(sampleRate - myCurrentSampleRate) > 0.1) {
-
-            initializeTimecoder(formatName, sampleRate);
+            std::abs(effectiveTimecoderRate - myCurrentSampleRate) > 0.1 ||
+            std::abs(vinylSpeed - myCurrentVinylSpeed) > 0.0001) {
+            initializeTimecoder(formatName, effectiveTimecoderRate, vinylSpeed);
             myCurrentFormatIndex = formatIndex;
         }
 
-        // Process audio if we have at least 2 channels (L/R)
         if (inputChop->numChannels >= 2 && myTimecoderInitialized) {
             const float* leftChannel = inputChop->getChannelData(0);
             const float* rightChannel = inputChop->getChannelData(1);
-
-            processAudioSamples(leftChannel, rightChannel, inputChop->numSamples);
+            processAudioSamples(leftChannel, rightChannel, inputChop->numSamples, gain, swapLR, invertL, invertR, pitchScale);
         }
     }
 
-    // Output the current values
     for (int i = 0; i < output->numSamples; i++) {
         output->channels[0][i] = static_cast<float>(myPosition);
         output->channels[1][i] = static_cast<float>(myPitch);
@@ -267,7 +265,7 @@ VinylTimecodeCHOP::execute(CHOP_Output* output, const OP_Inputs* inputs, void*)
 int32_t
 VinylTimecodeCHOP::getNumInfoCHOPChans(void*)
 {
-    return 9;  // Added raw_position channel
+    return 14;
 }
 
 void
@@ -303,12 +301,32 @@ VinylTimecodeCHOP::getInfoCHOPChan(int index, OP_InfoCHOPChan* chan, void*)
             chan->value = myTimecoder ? static_cast<float>(myTimecoder->valid_counter) : 0.0f;
             break;
         case 7:
-            chan->name->setString("timecode_ticker");
-            chan->value = myTimecoder ? static_cast<float>(myTimecoder->timecode_ticker) : 0.0f;
-            break;
-        case 8:
             chan->name->setString("raw_position");
             chan->value = static_cast<float>(myRawPosition);
+            break;
+        case 8:
+            chan->name->setString("forwards");
+            chan->value = myTimecoder ? static_cast<float>(myTimecoder->forwards) : 1.0f;
+            break;
+        case 9:
+            chan->name->setString("peak_l");
+            chan->value = myPeakL;
+            break;
+        case 10:
+            chan->name->setString("peak_r");
+            chan->value = myPeakR;
+            break;
+        case 11:
+            chan->name->setString("clip_count");
+            chan->value = static_cast<float>(myClipCount);
+            break;
+        case 12:
+            chan->name->setString("timecoder_rate");
+            chan->value = static_cast<float>(myCurrentSampleRate);
+            break;
+        case 13:
+            chan->name->setString("vinyl_speed");
+            chan->value = static_cast<float>(myCurrentVinylSpeed);
             break;
     }
 }
@@ -316,23 +334,119 @@ VinylTimecodeCHOP::getInfoCHOPChan(int index, OP_InfoCHOPChan* chan, void*)
 void
 VinylTimecodeCHOP::setupParameters(OP_ParameterManager* manager, void*)
 {
-    // Format menu parameter
+    // Format menu
     {
         OP_StringParameter sp;
         sp.name = "Format";
         sp.label = "Timecode Format";
         sp.defaultValue = TIMECODE_LABELS[0];
 
-        // Count number of formats
         int numFormats = 0;
-        while (TIMECODE_FORMATS[numFormats] != nullptr) {
-            numFormats++;
-        }
+        while (TIMECODE_FORMATS[numFormats] != nullptr) numFormats++;
 
         OP_ParAppendResult res = manager->appendMenu(sp, numFormats,
-            TIMECODE_LABELS,
-            TIMECODE_FORMATS);
+            TIMECODE_LABELS, TIMECODE_FORMATS);
+        assert(res == OP_ParAppendResult::Success);
+    }
 
+    // Input Gain
+    {
+        OP_NumericParameter np;
+        np.name = "Gain";
+        np.label = "Input Gain";
+        np.defaultValues[0] = 1.0;
+        np.minSliders[0] = 0.1;
+        np.maxSliders[0] = 20.0;
+        np.minValues[0] = 0.1;
+        np.maxValues[0] = 100.0;
+        np.clampMins[0] = true;
+        np.clampMaxes[0] = true;
+
+        OP_ParAppendResult res = manager->appendFloat(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Timecoder sample rate override. 0 means use the input CHOP sample rate.
+    {
+        OP_NumericParameter np;
+        np.name = "Timecoderate";
+        np.label = "Timecoder Rate";
+        np.defaultValues[0] = 0.0;
+        np.minSliders[0] = 0.0;
+        np.maxSliders[0] = 96000.0;
+        np.minValues[0] = 0.0;
+        np.maxValues[0] = 192000.0;
+        np.clampMins[0] = true;
+        np.clampMaxes[0] = true;
+
+        OP_ParAppendResult res = manager->appendFloat(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Matches Mixxx/xwax speed normalization. Use 1.35 for 45 RPM.
+    {
+        OP_NumericParameter np;
+        np.name = "Vinylspeed";
+        np.label = "Vinyl Speed";
+        np.defaultValues[0] = 1.0;
+        np.minSliders[0] = 0.5;
+        np.maxSliders[0] = 1.5;
+        np.minValues[0] = 0.1;
+        np.maxValues[0] = 4.0;
+        np.clampMins[0] = true;
+        np.clampMaxes[0] = true;
+
+        OP_ParAppendResult res = manager->appendFloat(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Final correction after xwax pitch detection.
+    {
+        OP_NumericParameter np;
+        np.name = "Pitchscale";
+        np.label = "Pitch Scale";
+        np.defaultValues[0] = 1.0;
+        np.minSliders[0] = 0.9;
+        np.maxSliders[0] = 1.1;
+        np.minValues[0] = 0.25;
+        np.maxValues[0] = 4.0;
+        np.clampMins[0] = true;
+        np.clampMaxes[0] = true;
+
+        OP_ParAppendResult res = manager->appendFloat(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Swap L/R
+    {
+        OP_NumericParameter np;
+        np.name = "Swaplr";
+        np.label = "Swap L/R";
+        np.defaultValues[0] = 0;
+
+        OP_ParAppendResult res = manager->appendToggle(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Invert L
+    {
+        OP_NumericParameter np;
+        np.name = "Invertl";
+        np.label = "Invert L";
+        np.defaultValues[0] = 0;
+
+        OP_ParAppendResult res = manager->appendToggle(np);
+        assert(res == OP_ParAppendResult::Success);
+    }
+
+    // Invert R
+    {
+        OP_NumericParameter np;
+        np.name = "Invertr";
+        np.label = "Invert R";
+        np.defaultValues[0] = 0;
+
+        OP_ParAppendResult res = manager->appendToggle(np);
         assert(res == OP_ParAppendResult::Success);
     }
 }
